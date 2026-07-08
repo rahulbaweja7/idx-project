@@ -86,4 +86,66 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/properties/:id/openhouses — must be before /:id
+router.get('/:id/openhouses', async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || id.length > 50) {
+    return res.status(400).json({ error: 'Invalid listing ID' });
+  }
+
+  try {
+    // First verify property exists
+    const [property] = await db.query(
+      'SELECT L_ListingID FROM rets_property WHERE L_ListingID = ?',
+      [id]
+    );
+    if (property.length === 0) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    const [openhouses] = await db.query(
+      `SELECT L_ListingID, OpenHouseDate, OH_StartTime, OH_EndTime, all_data
+       FROM rets_openhouse
+       WHERE L_ListingID = ?
+       ORDER BY OpenHouseDate, OH_StartTime`,
+      [id]
+    );
+
+    res.json(openhouses);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// GET /api/properties/:id — must be after /openhouses
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || id.length > 50) {
+    return res.status(400).json({ error: 'Invalid listing ID' });
+  }
+
+  try {
+    const [rows] = await db.query(
+      `SELECT L_ListingID, L_Address, L_City, L_State, L_Zip,
+              L_SystemPrice, L_Keyword2, LM_Dec_3, LM_Int2_3,
+              L_Photos, LMD_MP_Latitude, LMD_MP_Longitude,
+              L_Remarks, YearBuilt, LotSizeAcres
+       FROM rets_property WHERE L_ListingID = ?`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 module.exports = router;
