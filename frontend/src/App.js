@@ -1,21 +1,14 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import ListingsPage from './pages/ListingsPage';
-import PropertyDetailPage from './pages/PropertyDetailPage';
-import ErrorBoundary from './components/ErrorBoundary';
-import './App.css';
 
-function App() {
-  return (
-    <div className="App">
-      <ErrorBoundary>
-        <Routes>
-          <Route path="/" element={<ListingsPage />} />
-          <Route path="/property/:id" element={<PropertyDetailPage />} />
-        </Routes>
-      </ErrorBoundary>
-    </div>
+test('renders property listings heading', () => {
+  render(
+    <MemoryRouter>
+      <ListingsPage />
+    </MemoryRouter>
   );
-}
-
-export default App;
+  const heading = screen.getByText(/property listings/i);
+  expect(heading).toBeInTheDocument();
+});
