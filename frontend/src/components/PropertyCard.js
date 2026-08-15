@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 function parsePhotos(photosRaw) {
   try {
@@ -9,13 +10,18 @@ function parsePhotos(photosRaw) {
 }
 
 function PropertyCard({ property }) {
+  const navigate = useNavigate();
   const photo = parsePhotos(property.L_Photos);
   const price = property.L_SystemPrice
     ? `$${property.L_SystemPrice.toLocaleString()}`
     : 'Price not available';
 
+  function handleClick() {
+    navigate(`/property/${property.L_ListingID}`);
+  }
+
   return (
-    <div className="property-card">
+    <div className="property-card" onClick={handleClick}>
       <div className="property-card-image">
         {photo ? (
           <img src={photo} alt={property.L_Address} />
