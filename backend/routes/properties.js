@@ -4,7 +4,7 @@ const db = require('../db');
 
 // GET /api/properties
 router.get('/', async (req, res) => {
-  const { city, zipcode, minPrice, maxPrice, beds, baths, limit = 20, offset = 0 } = req.query;
+  const { city, zipcode, minPrice, maxPrice, beds, baths, limit = 20, offset = 0, sortBy, sortOrder = 'asc' } = req.query;
 
   // Validate numeric inputs
   const limitNum = parseInt(limit);
@@ -28,6 +28,24 @@ router.get('/', async (req, res) => {
   if (baths && isNaN(Number(baths))) {
     return res.status(400).json({ error: 'baths must be a number' });
   }
+
+  // Validate sort params
+  const allowedSortFields = {
+    price: 'L_SystemPrice',
+    beds: 'L_Keyword2',
+    baths: 'LM_Dec_3',
+    sqft: 'LM_Int2_3',
+    year: 'YearBuilt'
+  };
+
+  if (sortBy && !allowedSortFields[sortBy]) {
+    return res.status(400).json({ error: 'Invalid sortBy value' });
+  }
+  if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
+    return res.status(400).json({ error: 'sortOrder must be asc or desc' });
+  }
+
+  const sortColumn = sortBy ? allowedSortFields[sortBy] : null;
 
   // Build WHERE clause dynamically
   const conditions = [];
@@ -61,20 +79,21 @@ router.get('/', async (req, res) => {
   const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
   try {
-    // Get total count
+    await db.query("SET SESSION sql_mode = ''");
     const [countRows] = await db.query(
       `SELECT COUNT(*) as total FROM rets_property ${whereClause}`,
       values
     );
     const total = countRows[0].total;
 
-    // Get paginated results
+    await db.query("SET SESSION sql_mode = ''");
     const [rows] = await db.query(
       `SELECT L_ListingID, L_Address, L_City, L_State, L_Zip,
               L_SystemPrice, L_Keyword2, LM_Dec_3, LM_Int2_3,
               L_Photos, LMD_MP_Latitude, LMD_MP_Longitude,
               L_Remarks, YearBuilt, LotSizeAcres
        FROM rets_property ${whereClause}
+       ${sortColumn ? `ORDER BY ${sortColumn} ${sortOrder.toUpperCase()}` : ''}
        LIMIT ? OFFSET ?`,
       [...values, limitNum, offsetNum]
     );
@@ -95,7 +114,6 @@ router.get('/:id/openhouses', async (req, res) => {
   }
 
   try {
-    // First verify property exists
     const [property] = await db.query(
       'SELECT L_ListingID FROM rets_property WHERE L_ListingID = ?',
       [id]
